@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    /* ── Theme variables ──────────────────────────────────────────────────── */
+    :root {
+      --bg-primary:    #1a1a1a;
+      --bg-secondary:  #242424;
+      --bg-tertiary:   #2c2c2c;
+      --bg-hover:      #2f2f2f;
+      --text-primary:  #e0e0e0;
+      --text-muted:    #888;
+      --border:        #383838;
+      --border-strong: #555;
+      --tab-active:    #cccccc;
+      --btn-bg:        #2c2c2c;
+      --btn-hover:     #363636;
+      --btn-start:     #1b3a1b;
+      --btn-stop:      #3a1b1b;
+      --btn-active-border: #aaa;
+      --badge-1xx-bg:  #2a2a2a; --badge-1xx-fg: #999999;
+      --badge-2xx-bg:  #1a3320; --badge-2xx-fg: #5dbf72;
+      --badge-3xx-bg:  #1a2a3a; --badge-3xx-fg: #5aaad4;
+      --badge-4xx-bg:  #3a2a00; --badge-4xx-fg: #f0c040;
+      --badge-5xx-bg:  #3a1a1e; --badge-5xx-fg: #e06060;
+      --settings-desc: #777;
+    }
+    body.light {
+      --bg-primary:    #d4d4d4;
+      --bg-secondary:  #cacaca;
+      --bg-tertiary:   #bebebe;
+      --bg-hover:      #bababa;
+      --text-primary:  #1a1a1a;
+      --text-muted:    #555;
+      --border:        #aaaaaa;
+      --border-strong: #888;
+      --tab-active:    #1a1a1a;
+      --btn-bg:        #bebebe;
+      --btn-hover:     #b2b2b2;
+      --btn-start:     #4a7c4a;
+      --btn-stop:      #7c4a4a;
+      --btn-active-border: #333;
+      --badge-1xx-bg:  #909090; --badge-1xx-fg: #1a1a1a;
+      --badge-2xx-bg:  #2d6b3a; --badge-2xx-fg: #c8f0d0;
+      --badge-3xx-bg:  #2a4f6e; --badge-3xx-fg: #c0e0f8;
+      --badge-4xx-bg:  #6b5000; --badge-4xx-fg: #f8e070;
+      --badge-5xx-bg:  #6b2428; --badge-5xx-fg: #f8c8cc;
+      --settings-desc: #555;
+    }
+
+    /* ── Base ─────────────────────────────────────────────────────────────── */
+    * { box-sizing: border-box; }
+    body {
+      width: 660px; font-family: sans-serif; padding: 12px; margin: 0;
+      background: var(--bg-primary); color: var(--text-primary);
+      transition: background 0.15s, color 0.15s;
+    }
+    h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text-primary); }
+
+    /* ── Tabs ─────────────────────────────────────────────────────────────── */
+    .tab-bar { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; }
+    .tab-btn {
+      padding: 7px 16px; cursor: pointer; border: none;
+      background: none; font-size: 12px; font-weight: bold;
+      color: var(--text-muted); border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: color 0.15s;
+    }
+    .tab-btn.active { color: var(--tab-active); border-bottom-color: var(--tab-active); }
+    .tab-btn:hover:not(.active) { color: var(--text-primary); }
+    .tab-btn.settings-tab { margin-left: auto; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Controls ─────────────────────────────────────────────────────────── */
+    .controls { display: flex; gap: 5px; margin-bottom: 10px; }
+    button.ctrl {
+      cursor: pointer; padding: 7px 10px; flex: 1;
+      border: 1px solid var(--border); border-radius: 4px; font-size: 12px;
+      background: var(--btn-bg); color: var(--text-primary);
+    }
+    button.ctrl:hover { background: var(--btn-hover); }
+    button.ctrl.start  { background: var(--btn-start); }
+    button.ctrl.stop   { background: var(--btn-stop); }
+    button.ctrl.active { font-weight: bold; border: 2px solid var(--btn-active-border); }
+
+    /* ── Search bar ───────────────────────────────────────────────────────── */
+    .search-bar { margin-bottom: 8px; }
+    .search-bar input {
+      width: 100%; padding: 5px 8px; font-size: 11px; outline: none;
+      background: var(--bg-secondary); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    .search-bar input::placeholder { color: var(--text-muted); }
+    .search-bar input:focus { border-color: var(--border-strong); }
+
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    .list-container { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      text-align: left; background: var(--bg-tertiary); color: var(--text-primary);
+      padding: 7px 8px; border-bottom: 2px solid var(--border-strong); white-space: nowrap;
+    }
+    th[data-col] { cursor: pointer; user-select: none; }
+    th[data-col]:hover { background: var(--bg-hover); }
+    th[data-col]::after { content: ''; display: inline-block; width: 12px; margin-left: 2px; }
+    th[data-col][data-dir="asc"]::after  { content: ' ▲'; }
+    th[data-col][data-dir="desc"]::after { content: ' ▼'; }
+    td { padding: 6px 8px; border-bottom: 1px solid var(--border); word-break: break-all; color: var(--text-primary); }
+    tr:hover td { background: var(--bg-hover); }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 1px 5px; border-radius: 3px;
+      font-size: 10px; font-weight: bold; margin: 1px 2px 1px 0;
+    }
+    .badge-1xx { background: var(--badge-1xx-bg); color: var(--badge-1xx-fg); }
+    .badge-2xx { background: var(--badge-2xx-bg); color: var(--badge-2xx-fg); }
+    .badge-3xx { background: var(--badge-3xx-bg); color: var(--badge-3xx-fg); }
+    .badge-4xx { background: var(--badge-4xx-bg); color: var(--badge-4xx-fg); }
+    .badge-5xx { background: var(--badge-5xx-bg); color: var(--badge-5xx-fg); }
+
+    /* ── Footer / status ──────────────────────────────────────────────────── */
+    .footer { margin-top: 10px; display: flex; gap: 5px; }
+    .status {
+      font-size: 11px; margin-bottom: 8px; color: var(--text-muted);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text-muted);
+    }
+    .status.recording { color: #5dbf72; }
+    .status.recording .status-dot {
+      background: #5dbf72;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    body.light .status.recording { color: #2a7a3a; }
+    body.light .status.recording .status-dot { background: #2a7a3a; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(93, 191, 114, 0.5); }
+      70%  { box-shadow: 0 0 0 6px rgba(93, 191, 114, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(93, 191, 114, 0); }
+    }
+
+    /* ── Settings ─────────────────────────────────────────────────────────── */
+    .settings-group { margin-bottom: 18px; }
+    .settings-group h4 {
+      font-size: 12px; color: var(--text-primary); margin: 0 0 10px 0;
+      padding-bottom: 5px; border-bottom: 1px solid var(--border);
+    }
+    .setting-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; }
+    .setting-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 14px; height: 14px; cursor: pointer; }
+    .setting-label { font-size: 12px; font-weight: bold; color: var(--text-primary); margin-bottom: 3px; }
+    .setting-desc { font-size: 11px; color: var(--settings-desc); margin: 0; line-height: 1.4; }
+
+    /* ── Noise filter ─────────────────────────────────────────────────────── */
+    .noise-list { margin-bottom: 8px; }
+    .noise-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 0; font-size: 11px; border-bottom: 1px solid var(--border);
+    }
+    .noise-row:last-child { border-bottom: none; }
+    .noise-remove {
+      cursor: pointer; background: none; border: none; color: var(--text-muted);
+      font-size: 11px; padding: 0 4px; line-height: 1;
+    }
+    .noise-remove:hover { color: var(--badge-5xx-fg); }
+    .noise-add-row { display: flex; gap: 5px; margin-top: 6px; }
+    .noise-add-row input {
+      flex: 1; padding: 5px 8px; font-size: 11px; outline: none;
+      background: var(--bg-secondary); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    .noise-add-row input:focus { border-color: var(--border-strong); }
+    .noise-add-row button {
+      cursor: pointer; padding: 5px 10px; font-size: 11px;
+      background: var(--btn-bg); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    .noise-add-row button:hover { background: var(--btn-hover); }
+  </style>
+</head>
+<body>
+  <h3>Traffic Analyzer</h3>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="logger">All Traffic</button>
+    <button class="tab-btn" data-tab="blocked">Blocked Traffic</button>
+    <button class="tab-btn settings-tab" data-tab="settings">&#9881; Settings</button>
+  </div>
+
+  <!-- Tab 1: All Traffic -->
+  <div id="tab-logger" class="tab-content active">
+    <div class="status" id="logger-status"><span class="status-dot"></span>Stopped (0 domains)</div>
+    <div class="controls">
+      <button id="logger-start" class="ctrl start">Start</button>
+      <button id="logger-stop"  class="ctrl stop">Stop</button>
+      <button id="logger-clear" class="ctrl">Clear</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="logger-search" placeholder="Filter by domain...">
+    </div>
+    <div class="list-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35%" data-col="domain">Domain</th>
+            <th style="width:10%" data-col="port">Ports</th>
+            <th style="width:15%" data-col="protocol">Protocols</th>
+            <th style="width:27%" data-col="status">Status Codes</th>
+            <th style="width:13%" data-col="requests">Requests</th>
+          </tr>
+        </thead>
+        <tbody id="logger-table-body"></tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <button id="logger-export-copy" class="ctrl">Copy CSV</button>
+      <button id="logger-export-download" class="ctrl">Download CSV</button>
+    </div>
+  </div>
+
+  <!-- Tab 2: Blocked Traffic -->
+  <div id="tab-blocked" class="tab-content">
+    <div class="status" id="blocked-status"><span class="status-dot"></span>Stopped (0 domains)</div>
+    <div class="controls">
+      <button id="blocked-start" class="ctrl start">Start</button>
+      <button id="blocked-stop"  class="ctrl stop">Stop</button>
+      <button id="blocked-clear" class="ctrl">Clear</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="blocked-search" placeholder="Filter by domain...">
+    </div>
+    <div class="list-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35%" data-col="domain">Domain</th>
+            <th style="width:10%" data-col="port">Ports</th>
+            <th style="width:15%" data-col="protocol">Protocols</th>
+            <th style="width:27%" data-col="status">Status Codes</th>
+            <th style="width:13%" data-col="requests">Requests</th>
+          </tr>
+        </thead>
+        <tbody id="blocked-table-body"></tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <button id="blocked-export-copy" class="ctrl">Copy CSV</button>
+      <button id="blocked-export-download" class="ctrl">Download CSV</button>
+    </div>
+  </div>
+
+  <!-- Tab 3: Settings -->
+  <div id="tab-settings" class="tab-content">
+    <div class="settings-group">
+      <h4>Logging</h4>
+      <div class="setting-row">
+        <input type="checkbox" id="setting-linked">
+        <div>
+          <div class="setting-label">Linked logging</div>
+          <p class="setting-desc">
+            When enabled, Start, Stop and Clear on either tab act on both tabs simultaneously.
+            Default: on.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <h4>Noise Filter</h4>
+      <p class="setting-desc" style="margin-bottom:10px;">
+        Domains matching these entries (substring) are ignored during capture.
+      </p>
+      <div class="noise-list" id="noise-list"></div>
+      <div class="noise-add-row">
+        <input type="text" id="noise-add-input" placeholder="e.g. example.com">
+        <button id="noise-add-btn">Add</button>
+      </div>
+    </div>
+    <div class="settings-group">
+      <h4>Appearance</h4>
+      <div class="setting-row">
+        <input type="checkbox" id="setting-theme">
+        <div>
+          <div class="setting-label">Light theme</div>
+          <p class="setting-desc">
+            Switch to a light colour scheme. Default is dark.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
