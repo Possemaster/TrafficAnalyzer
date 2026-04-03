@@ -22,9 +22,9 @@ function activateTab(tabName) {
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     activateTab(btn.dataset.tab);
-    chrome.storage.local.set({ activeTab: btn.dataset.tab });
+    await chrome.storage.local.set({ activeTab: btn.dataset.tab });
   });
 });
 
@@ -38,10 +38,9 @@ function statusBadge(code) {
   return `<span class="badge ${cls}">${code}</span>`;
 }
 
-function getLinked(callback) {
-  chrome.storage.local.get(['linkedLogging'], (data) => {
-    callback(data.linkedLogging !== false);
-  });
+async function getLinked() {
+  const data = await chrome.storage.local.get(['linkedLogging']);
+  return data.linkedLogging !== false;
 }
 
 function aggregateDomain(info) {
@@ -119,6 +118,7 @@ function renderTable(tabId, domainData) {
 
   const tbody = document.getElementById(`${tabId}-table-body`);
   tbody.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   rows.forEach(({ domain, ports, protocols, statusCodes, requestCount }) => {
     const tr = document.createElement('tr');
 
@@ -134,13 +134,14 @@ function renderTable(tabId, domainData) {
     tdRequests.textContent = requestCount || '';
 
     tr.append(tdDomain, tdPorts, tdProtocols, tdStatus, tdRequests);
-    tbody.appendChild(tr);
+    fragment.appendChild(tr);
   });
+  tbody.appendChild(fragment);
 }
 
 // ── Sortable headers ──────────────────────────────────────────────────────────
 document.querySelectorAll('th[data-col]').forEach(th => {
-  th.addEventListener('click', () => {
+  th.addEventListener('click', async () => {
     const tabId = th.closest('.tab-content').id.replace('tab-', '');
     const col   = th.dataset.col;
     const state = sortState[tabId];
@@ -151,119 +152,112 @@ document.querySelectorAll('th[data-col]').forEach(th => {
       state.dir = 'asc';
     }
     const dataKey = tabId === 'logger' ? 'domainData' : 'blockedData';
-    chrome.storage.local.get([dataKey], (data) => renderTable(tabId, data[dataKey] || {}));
+    const data = await chrome.storage.local.get([dataKey]);
+    renderTable(tabId, data[dataKey] || {});
   });
 });
 
 // ── Search ────────────────────────────────────────────────────────────────────
 ['logger', 'blocked'].forEach(tabId => {
   const dataKey = tabId === 'logger' ? 'domainData' : 'blockedData';
-  document.getElementById(`${tabId}-search`).addEventListener('input', () => {
-    chrome.storage.local.get([dataKey], (data) => renderTable(tabId, data[dataKey] || {}));
+  document.getElementById(`${tabId}-search`).addEventListener('input', async () => {
+    const data = await chrome.storage.local.get([dataKey]);
+    renderTable(tabId, data[dataKey] || {});
   });
 });
 
 // ── Unified tab UI update ─────────────────────────────────────────────────────
-function updateTabUI(tabId, dataKey, recordingKey) {
-  chrome.storage.local.get([dataKey, recordingKey], (data) => {
-    const isRec      = !!data[recordingKey];
-    const domainData = data[dataKey] || {};
-    const count      = Object.keys(domainData).length;
+async function updateTabUI(tabId, dataKey, recordingKey) {
+  const data = await chrome.storage.local.get([dataKey, recordingKey]);
+  const isRec      = !!data[recordingKey];
+  const domainData = data[dataKey] || {};
+  const count      = Object.keys(domainData).length;
 
-    const statusEl = document.getElementById(`${tabId}-status`);
-    statusEl.className = 'status' + (isRec ? ' recording' : '');
-    statusEl.innerHTML = `<span class="status-dot"></span>${isRec ? 'Logging...' : 'Stopped'} (${count} domains)`;
+  const statusEl = document.getElementById(`${tabId}-status`);
+  statusEl.className = 'status' + (isRec ? ' recording' : '');
+  statusEl.innerHTML = `<span class="status-dot"></span>${isRec ? 'Logging...' : 'Stopped'} (${count} domains)`;
 
-    document.getElementById(`${tabId}-start`).className = 'ctrl start' + (isRec ? ' active' : '');
-    document.getElementById(`${tabId}-stop`).className  = 'ctrl stop'  + (!isRec ? ' active' : '');
+  document.getElementById(`${tabId}-start`).className = 'ctrl start' + (isRec ? ' active' : '');
+  document.getElementById(`${tabId}-stop`).className  = 'ctrl stop'  + (!isRec ? ' active' : '');
 
-    renderTable(tabId, domainData);
-  });
+  renderTable(tabId, domainData);
 }
 
 function updateLoggerUI()  { updateTabUI('logger',  'domainData',  'isRecording'); }
 function updateBlockedUI() { updateTabUI('blocked', 'blockedData', 'isBlockedRecording'); }
 
 // ── Tab 1 controls ────────────────────────────────────────────────────────────
-document.getElementById('logger-start').addEventListener('click', () => {
-  getLinked(linked => {
-    const update = { isRecording: true };
-    if (linked) update.isBlockedRecording = true;
-    chrome.storage.local.set(update);
-  });
+document.getElementById('logger-start').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const update = { isRecording: true };
+  if (linked) update.isBlockedRecording = true;
+  await chrome.storage.local.set(update);
 });
 
-document.getElementById('logger-stop').addEventListener('click', () => {
-  getLinked(linked => {
-    const update = { isRecording: false };
-    if (linked) update.isBlockedRecording = false;
-    chrome.storage.local.set(update);
-  });
+document.getElementById('logger-stop').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const update = { isRecording: false };
+  if (linked) update.isBlockedRecording = false;
+  await chrome.storage.local.set(update);
 });
 
-document.getElementById('logger-clear').addEventListener('click', () => {
-  getLinked(linked => {
-    const msg = linked ? 'Clear all logged data from both tabs?' : 'Clear all logged domains?';
-    if (confirm(msg)) {
-      const update = { domainData: {} };
-      if (linked) update.blockedData = {};
-      chrome.storage.local.set(update);
-    }
-  });
+document.getElementById('logger-clear').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const msg = linked ? 'Clear all logged data from both tabs?' : 'Clear all logged domains?';
+  if (confirm(msg)) {
+    const update = { domainData: {} };
+    if (linked) update.blockedData = {};
+    await chrome.storage.local.set(update);
+  }
 });
 
-document.getElementById('logger-export-copy').addEventListener('click', () => {
-  chrome.storage.local.get(['domainData'], (data) => {
-    const csv = buildExportCSV(data.domainData || {});
-    navigator.clipboard.writeText(csv).then(() => alert('CSV copied to clipboard!'));
-  });
+document.getElementById('logger-export-copy').addEventListener('click', async () => {
+  const data = await chrome.storage.local.get(['domainData']);
+  const csv = buildExportCSV(data.domainData || {});
+  await navigator.clipboard.writeText(csv);
+  alert('CSV copied to clipboard!');
 });
 
-document.getElementById('logger-export-download').addEventListener('click', () => {
-  chrome.storage.local.get(['domainData'], (data) => {
-    downloadCSV(buildExportCSV(data.domainData || {}), 'all-traffic.csv');
-  });
+document.getElementById('logger-export-download').addEventListener('click', async () => {
+  const data = await chrome.storage.local.get(['domainData']);
+  downloadCSV(buildExportCSV(data.domainData || {}), 'all-traffic.csv');
 });
 
 // ── Tab 2 controls ────────────────────────────────────────────────────────────
-document.getElementById('blocked-start').addEventListener('click', () => {
-  getLinked(linked => {
-    const update = { isBlockedRecording: true };
-    if (linked) update.isRecording = true;
-    chrome.storage.local.set(update);
-  });
+document.getElementById('blocked-start').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const update = { isBlockedRecording: true };
+  if (linked) update.isRecording = true;
+  await chrome.storage.local.set(update);
 });
 
-document.getElementById('blocked-stop').addEventListener('click', () => {
-  getLinked(linked => {
-    const update = { isBlockedRecording: false };
-    if (linked) update.isRecording = false;
-    chrome.storage.local.set(update);
-  });
+document.getElementById('blocked-stop').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const update = { isBlockedRecording: false };
+  if (linked) update.isRecording = false;
+  await chrome.storage.local.set(update);
 });
 
-document.getElementById('blocked-clear').addEventListener('click', () => {
-  getLinked(linked => {
-    const msg = linked ? 'Clear all logged data from both tabs?' : 'Clear all blocked traffic data?';
-    if (confirm(msg)) {
-      const update = { blockedData: {} };
-      if (linked) update.domainData = {};
-      chrome.storage.local.set(update);
-    }
-  });
+document.getElementById('blocked-clear').addEventListener('click', async () => {
+  const linked = await getLinked();
+  const msg = linked ? 'Clear all logged data from both tabs?' : 'Clear all blocked traffic data?';
+  if (confirm(msg)) {
+    const update = { blockedData: {} };
+    if (linked) update.domainData = {};
+    await chrome.storage.local.set(update);
+  }
 });
 
-document.getElementById('blocked-export-copy').addEventListener('click', () => {
-  chrome.storage.local.get(['blockedData'], (data) => {
-    const csv = buildExportCSV(data.blockedData || {});
-    navigator.clipboard.writeText(csv).then(() => alert('CSV copied to clipboard!'));
-  });
+document.getElementById('blocked-export-copy').addEventListener('click', async () => {
+  const data = await chrome.storage.local.get(['blockedData']);
+  const csv = buildExportCSV(data.blockedData || {});
+  await navigator.clipboard.writeText(csv);
+  alert('CSV copied to clipboard!');
 });
 
-document.getElementById('blocked-export-download').addEventListener('click', () => {
-  chrome.storage.local.get(['blockedData'], (data) => {
-    downloadCSV(buildExportCSV(data.blockedData || {}), 'blocked-traffic.csv');
-  });
+document.getElementById('blocked-export-download').addEventListener('click', async () => {
+  const data = await chrome.storage.local.get(['blockedData']);
+  downloadCSV(buildExportCSV(data.blockedData || {}), 'blocked-traffic.csv');
 });
 
 // ── Tab 3: Settings ───────────────────────────────────────────────────────────
@@ -278,9 +272,9 @@ function renderNoiseList(filters) {
     const btn  = document.createElement('button');
     btn.textContent = '✕';
     btn.className = 'noise-remove';
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const updated = filters.filter((_, j) => j !== i);
-      chrome.storage.local.set({ noiseFilter: updated });
+      await chrome.storage.local.set({ noiseFilter: updated });
       renderNoiseList(updated);
     });
     row.append(span, btn);
@@ -288,32 +282,31 @@ function renderNoiseList(filters) {
   });
 }
 
-document.getElementById('noise-add-btn').addEventListener('click', () => {
+document.getElementById('noise-add-btn').addEventListener('click', async () => {
   const input = document.getElementById('noise-add-input');
   const value = input.value.trim();
   if (!value) return;
-  chrome.storage.local.get(['noiseFilter'], (data) => {
-    const filters = data.noiseFilter || DEFAULT_NOISE_FILTER;
-    if (filters.includes(value)) return;
-    const updated = [...filters, value];
-    chrome.storage.local.set({ noiseFilter: updated });
-    renderNoiseList(updated);
-    input.value = '';
-  });
+  const data = await chrome.storage.local.get(['noiseFilter']);
+  const filters = data.noiseFilter || DEFAULT_NOISE_FILTER;
+  if (filters.includes(value)) return;
+  const updated = [...filters, value];
+  await chrome.storage.local.set({ noiseFilter: updated });
+  renderNoiseList(updated);
+  input.value = '';
 });
 
 document.getElementById('noise-add-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('noise-add-btn').click();
 });
 
-document.getElementById('setting-linked').addEventListener('change', (e) => {
-  chrome.storage.local.set({ linkedLogging: e.target.checked });
+document.getElementById('setting-linked').addEventListener('change', async (e) => {
+  await chrome.storage.local.set({ linkedLogging: e.target.checked });
 });
 
-document.getElementById('setting-theme').addEventListener('change', (e) => {
+document.getElementById('setting-theme').addEventListener('change', async (e) => {
   const theme = e.target.checked ? 'light' : 'dark';
   applyTheme(theme);
-  chrome.storage.local.set({ theme });
+  await chrome.storage.local.set({ theme });
 });
 
 // ── Storage change listener ───────────────────────────────────────────────────
@@ -323,12 +316,13 @@ chrome.storage.onChanged.addListener((changes) => {
 });
 
 // ── Initial load ──────────────────────────────────────────────────────────────
-chrome.storage.local.get(['activeTab', 'theme', 'linkedLogging', 'noiseFilter'], (data) => {
+(async () => {
+  const data = await chrome.storage.local.get(['activeTab', 'theme', 'linkedLogging', 'noiseFilter']);
   applyTheme(data.theme || 'dark');
   document.getElementById('setting-linked').checked = (data.linkedLogging !== false);
   renderNoiseList(data.noiseFilter || DEFAULT_NOISE_FILTER);
   if (data.activeTab) activateTab(data.activeTab);
-});
+})();
 
 updateLoggerUI();
 updateBlockedUI();

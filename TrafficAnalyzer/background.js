@@ -16,20 +16,38 @@ let blockedCache = {};
 let isBlockedRecording = false;
 
 // Debounced storage saves — coalesces rapid writes under heavy traffic
+const QUOTA_LIMIT = 4.5 * 1024 * 1024; // 4.5MB threshold to prevent hitting 5MB limit
 let domainSaveTimer = null;
 let blockedSaveTimer = null;
+
+async function performSave(key, cacheData, recordingFlagKey) {
+  try {
+    const bytesInUse = await chrome.storage.local.getBytesInUse(null);
+    if (bytesInUse > QUOTA_LIMIT) {
+      console.warn(`[Traffic Analyzer] Storage quota approaching limit (${bytesInUse} bytes). Stopped recording.`);
+      if (key === 'domainData') isRecording = false;
+      if (key === 'blockedData') isBlockedRecording = false;
+      await chrome.storage.local.set({ [recordingFlagKey]: false });
+      return; // Skip saving to avoid QuotaExceededError
+    }
+    await chrome.storage.local.set({ [key]: cacheData });
+  } catch (e) {
+    console.error("[Traffic Analyzer] Save failed:", e);
+  }
+}
+
 function scheduleSave(key) {
   if (key === 'domainData') {
     clearTimeout(domainSaveTimer);
-    domainSaveTimer = setTimeout(() => chrome.storage.local.set({ domainData: domainCache }), 200);
+    domainSaveTimer = setTimeout(() => performSave('domainData', domainCache, 'isRecording'), 200);
   } else {
     clearTimeout(blockedSaveTimer);
-    blockedSaveTimer = setTimeout(() => chrome.storage.local.set({ blockedData: blockedCache }), 200);
+    blockedSaveTimer = setTimeout(() => performSave('blockedData', blockedCache, 'isBlockedRecording'), 200);
   }
 }
 
 // Seed from storage when the service worker starts
-chrome.storage.local.get(['domainData', 'isRecording', 'blockedData', 'isBlockedRecording', 'noiseFilter'], (data) => {
+const stateReady = chrome.storage.local.get(['domainData', 'isRecording', 'blockedData', 'isBlockedRecording', 'noiseFilter']).then((data) => {
   if (data.domainData)          domainCache        = data.domainData;
   if (data.isRecording)         isRecording        = data.isRecording;
   if (data.blockedData)         blockedCache       = data.blockedData;
@@ -66,7 +84,8 @@ function resolvePort(protocol, rawPort) {
 
 // Tab 1: Capture all request domains
 chrome.webRequest.onBeforeRequest.addListener(
-  (details) => {
+  async (details) => {
+    await stateReady;
     if (!isRecording) return;
 
     try {
@@ -100,7 +119,8 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 // Shared onCompleted: Tab 1 status codes + Tab 2 blocked traffic
 chrome.webRequest.onCompleted.addListener(
-  (details) => {
+  async (details) => {
+    await stateReady;
     if (!isRecording && !isBlockedRecording) return;
 
     try {
