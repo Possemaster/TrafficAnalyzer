@@ -19,6 +19,8 @@ Chrome extension with two recording tabs:
 - **No BLOCKED status tag** — uBlock-blocked requests (ERR_ABORTED) are left with empty `statusCodes: []` rather than tagged. Too many false positives; empty array is clear enough.
 - **Separate export buttons per tab** — export is independent; linked logging (Start/Stop/Clear) still works across both tabs when enabled.
 - **Debounced storage writes** — `background.js` coalesces rapid `chrome.storage.local.set` calls to max once per 200ms per cache to avoid Chrome throttling under heavy traffic.
+- **Storage Quota Safeguard** — `chrome.storage.local` is limited to 5MB. A check is performed before debounced saves; if usage exceeds 4.5MB, recording is gracefully halted to prevent `QuotaExceededError`.
+- **Modern MV3 APIs** — Callback-based `chrome.storage` calls were refactored to use Promises (`async/await`) across both `background.js` and `popup.js`.
 - **Request count tracked in background** — incremented in `onBeforeRequest` (Tab 1) and `onCompleted` (Tab 2), stored as `requestCount` on each connection entry.
 - **Noise filter is user-editable** — stored in `chrome.storage.local` as `noiseFilter` string array, manageable in the Settings tab. Default list hardcoded in both `background.js` and `popup.js` as `DEFAULT_NOISE_FILTER` fallback.
 - **Light theme uses mid-tone grays** — not pure white; mirrors dark theme layering and uses the same badge color families.
@@ -51,7 +53,7 @@ manifest.json   MV3, permissions: webRequest + storage
 
 - `updateTabUI(tabId, dataKey, recordingKey)` — single function drives both tab UI updates
 - `renderTable(tabId, domainData)` — reads `sortState[tabId]` and search input, builds table with `createElement` (no innerHTML on user data)
-- `scheduleSave(key)` — debounce helper in background.js, separate timers for domainData and blockedData
+- `scheduleSave(key)` / `performSave` — debounce helpers in background.js with built-in quota check against `QUOTA_LIMIT`
 - NOISE_FILTER uses `.some(noise => hostname.includes(noise))` — substring match throughout
 
 ## What was explicitly ruled out

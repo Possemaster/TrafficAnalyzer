@@ -25,6 +25,7 @@ Captures only domains that returned a 4xx or 5xx HTTP response. Same data model 
 - **Search/filter** — filter the live table by domain substring
 - **Sortable columns** — click any column header (Domain, Ports, Protocols, Status Codes, Requests) to sort ascending/descending
 - **CSV export** — Copy to clipboard or download `.csv` per tab
+- **Storage Safeguard** — Automatically pauses recording before hitting the Chrome 5MB local storage limit to prevent crashes
 - **Noise filter** — configurable list of domain substrings to ignore during capture (e.g. analytics, Google updater); managed in Settings
 - **Dark/light theme** — toggle in Settings, default is dark
 
@@ -33,7 +34,7 @@ Captures only domains that returned a 4xx or 5xx HTTP response. Same data model 
 | File | Role |
 |------|------|
 | `manifest.json` | MV3 manifest — declares `webRequest` + `storage` permissions |
-| `background.js` | Service worker — `onBeforeRequest` and `onCompleted` WebRequest listeners, in-memory caches, debounced `chrome.storage.local` writes |
+| `background.js` | Service worker — `onBeforeRequest` and `onCompleted` WebRequest listeners, in-memory caches, debounced `chrome.storage.local` writes with quota safeguards |
 | `popup.html` | Popup UI — all CSS inline (theme variables, badges, status dot animation, sortable headers) |
 | `popup.js` | Popup logic — rendering, sorting, filtering, CSV export, settings |
 
